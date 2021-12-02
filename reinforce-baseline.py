@@ -71,20 +71,26 @@ def generate_episode(env, parameterised_policy, action_space_cardinality):
     return full_trajectory
 
 
-def update_w(delta, optimizer_w, parameterised_value_func, S_t):
+def update_w(delta, optimizer_w, parameterised_value_func, S_t):#, actor_critic = False, I = None):
     parameterised_value_func.train()
     optimizer_w.zero_grad()
+    # if not actor_critic:
     loss_value = torch.sum(- (torch.tensor(delta) * parameterised_value_func(torch.tensor(S_t)))) # delta is just a constant that can be multiplied
+    # else:
+    #     loss_value = torch.sum(- (I*torch.tensor(delta) * parameterised_value_func(torch.tensor(S_t)))) # delta is just a constant that can be multiplied
     loss_value.backward()
     optimizer_w.step()
 
 
-def update_theta(delta, optimizer_theta, parameterised_policy, A_t, S_t, gamma, t):
+def update_theta(delta, optimizer_theta, parameterised_policy, A_t, S_t, gamma, t=None, actor_critic = False, I=None):
     parameterised_policy.train()
     optimizer_theta.zero_grad()
     pi_given_S = parameterised_policy(torch.tensor(S_t))
     # print("PI GIVEN S UPDATE", pi_given_S[A_t])
-    loss_policy = torch.sum(- (gamma**t * torch.tensor(delta) * torch.log(pi_given_S[A_t])))
+    if not actor_critic:
+        loss_policy = torch.sum(- (gamma**t * torch.tensor(delta) * torch.log(pi_given_S[A_t])))
+    else:
+        loss_policy = torch.sum(- (I* torch.tensor(delta)* torch.log(pi_given_S[A_t])))
     loss_policy.backward()
     optimizer_theta.step()
 
@@ -108,12 +114,11 @@ def reinforce_with_baseline(alpha_w, alpha_theta, gamma, env, episodes):
             G = np.sum([gamma**(k-t-1)*R_k for k,
                        R_k in enumerate(trajectory_rewards[t+1:])])
             parameterised_value_func.eval()
-            delta_value = G - parameterised_value_func(torch.tensor(S_t)).detach().numpy()
-            delta_policy = G - parameterised_value_func(torch.tensor(S_t)).detach().numpy()
+            delta = G - parameterised_value_func(torch.tensor(S_t)).detach().numpy()
 
             # print("DELTA VAL", delta_value, "DELTA POL", delta_policy)
-            update_w(delta_value, optimizer_w, parameterised_value_func, S_t)
-            update_theta(delta_policy, optimizer_theta, parameterised_policy, A_t, S_t, gamma, t)
+            update_w(delta, optimizer_w, parameterised_value_func, S_t)
+            update_theta(delta, optimizer_theta, parameterised_policy, A_t, S_t, gamma, t)
         if len(accumulated_rewards) >= 100:
             accumulated_rewards[episode%len(accumulated_rewards)] = np.sum(trajectory_rewards)
         else:
@@ -125,12 +130,59 @@ def reinforce_with_baseline(alpha_w, alpha_theta, gamma, env, episodes):
         # print("\n PARAMS Policy",parameterised_policy.named_parameters(), "\n")
 
 
+def one_step_actor_critic(alpha_w, alpha_theta, gamma, env, episodes):
+    state_space_cardinality = env.observation_space.shape[0]
+    action_space_cardinality = env.action_space.n
+    parameterised_policy = ParameterisedPolicyNetwork(state_space_cardinality=state_space_cardinality, action_space_cardinality=action_space_cardinality)
+    parameterised_value_func = ParameterisedValueFunctionNetwork(state_space_cardinality=state_space_cardinality)
+
+    optimizer_theta = optimizer.Adam(
+        parameterised_policy.parameters(), lr=alpha_theta)
+    optimizer_w = optimizer.Adam(
+        parameterised_value_func.parameters(), lr=alpha_w)
+    accumulated_rewards = []
+    
+    for episode in range(episodes):
+        S_t = env.reset()
+        I = 1
+        accumulated_reward = 0
+        while True:
+            A_t = determine_action(S_t, parameterised_policy, action_space_cardinality)
+            S_t_next, R_t, terminal, _ = env.step(A_t)
+            accumulated_reward += R_t
+
+            parameterised_value_func.eval()
+            if not terminal:
+                delta = R_t + gamma*parameterised_value_func(torch.tensor(S_t_next)).detach().numpy() - parameterised_value_func(torch.tensor(S_t)).detach().numpy() 
+            else:
+                delta = R_t + parameterised_value_func(torch.tensor(S_t)).detach().numpy()
+            update_w(delta, optimizer_w, parameterised_value_func, S_t)#, actor_critic= True, I=I)
+            update_theta(delta, optimizer_theta, parameterised_policy, A_t, S_t, gamma, actor_critic = True, I=I)
+
+            
+
+            if terminal:
+                break
+            I *= gamma
+            S_t = S_t_next
+
+            
+
+        if len(accumulated_rewards) >= 100:
+            accumulated_rewards[episode%len(accumulated_rewards)] = accumulated_reward
+        else:
+            accumulated_rewards.append(accumulated_reward)
+
+        print("EPISODE: {}, SUM OF REWARDS: {}, ACC SUM REWS {}".format(
+            episode, accumulated_reward, np.mean(accumulated_rewards)))
 
 
 def main():
     print(2e-14)
-    ALPHA_THETA = 2**(-12)
-    ALPHA_W = 2**(-9)
+    ALPHA_THETA = 2**-12
+    ALPHA_W = 2**-9
+
+    # ALPHA_theta, ALPHA_w for REINFORCE w b: 12,9 works; 10,7 works; 9,7 works kind off but very unstable; 10,8 works 
     GAMMA = 0.99
     EPISODES = 2000
     print(ALPHA_W, ALPHA_THETA)
@@ -139,6 +191,8 @@ def main():
 
     reinforce_with_baseline(
         alpha_w=ALPHA_W, alpha_theta=ALPHA_THETA, gamma=GAMMA,env = env, episodes=EPISODES)
+    # one_step_actor_critic(
+    #     alpha_w=ALPHA_W, alpha_theta=ALPHA_THETA, gamma=GAMMA,env = env, episodes=EPISODES)
 
 
 if __name__ == "__main__":
