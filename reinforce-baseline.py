@@ -79,12 +79,12 @@ def update_w(delta, optimizer_w, parameterised_value_func, S_t):
     optimizer_w.step()
 
 
-def update_theta(delta, optimizer_theta, parameterised_policy, A_t, S_t):
+def update_theta(delta, optimizer_theta, parameterised_policy, A_t, S_t, gamma, t):
     parameterised_policy.train()
     optimizer_theta.zero_grad()
     pi_given_S = parameterised_policy(torch.tensor(S_t))
     # print("PI GIVEN S UPDATE", pi_given_S[A_t])
-    loss_policy = torch.sum(- (torch.tensor(delta) * torch.log(pi_given_S[A_t])))
+    loss_policy = torch.sum(- (gamma**t * torch.tensor(delta) * torch.log(pi_given_S[A_t])))
     loss_policy.backward()
     optimizer_theta.step()
 
@@ -98,6 +98,7 @@ def reinforce_with_baseline(alpha_w, alpha_theta, gamma, env, episodes):
         parameterised_policy.parameters(), lr=alpha_theta)
     optimizer_w = optimizer.Adam(
         parameterised_value_func.parameters(), lr=alpha_w)
+    accumulated_rewards = []
 
     for episode in range(episodes):
         full_trajectory = generate_episode(env, parameterised_policy, action_space_cardinality)
@@ -112,9 +113,14 @@ def reinforce_with_baseline(alpha_w, alpha_theta, gamma, env, episodes):
 
             # print("DELTA VAL", delta_value, "DELTA POL", delta_policy)
             update_w(delta_value, optimizer_w, parameterised_value_func, S_t)
-            update_theta(delta_policy, optimizer_theta, parameterised_policy, A_t, S_t)
-        print("EPISODE: {}, SUM OF REWARDS: {}".format(
-            episode, np.sum(trajectory_rewards)))
+            update_theta(delta_policy, optimizer_theta, parameterised_policy, A_t, S_t, gamma, t)
+        if len(accumulated_rewards) >= 100:
+            accumulated_rewards[episode%len(accumulated_rewards)] = np.sum(trajectory_rewards)
+        else:
+            accumulated_rewards.append(np.sum(trajectory_rewards))
+
+        print("EPISODE: {}, SUM OF REWARDS: {}, ACC SUM REWS {}".format(
+            episode, np.sum(trajectory_rewards), np.mean(accumulated_rewards)))
         # print("\n PARAMS VAL FUNC",[par.data for _, par in parameterised_value_func.named_parameters()], "\n")
         # print("\n PARAMS Policy",parameterised_policy.named_parameters(), "\n")
 
@@ -122,10 +128,12 @@ def reinforce_with_baseline(alpha_w, alpha_theta, gamma, env, episodes):
 
 
 def main():
-    ALPHA_THETA = 0.01
-    ALPHA_W = 0.01
+    print(2e-14)
+    ALPHA_THETA = 2**(-12)
+    ALPHA_W = 2**(-9)
     GAMMA = 0.99
-    EPISODES = 200
+    EPISODES = 2000
+    print(ALPHA_W, ALPHA_THETA)
 
     env = gym.make('CartPole-v0')
 
