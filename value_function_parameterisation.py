@@ -9,10 +9,10 @@ class ParameterisedValueFunctionNetwork(nn.Module):
 
     def __init__(self, state_space_cardinality) -> None:
         super().__init__()
-        self.input_fc = nn.Linear(in_features=state_space_cardinality, out_features=64)
+        self.input_fc = nn.Linear(in_features=state_space_cardinality, out_features=128)
         self.relu = nn.ReLU()
         # just one output as this is the parameterised value function
-        self.output_fc = nn.Linear(in_features=64, out_features=1)
+        self.output_fc = nn.Linear(in_features=128, out_features=1)
 
     def forward(self, x):
         x = self.input_fc(x)
@@ -74,7 +74,7 @@ class ParameterisedValueFunctionReinforce():
 
 class ParameterisedValueFunctionActorCritic():
 
-    def __init__(self, env,alpha_w, linear=True, M=5) -> None:
+    def __init__(self, env,alpha_w, linear=True, M=3) -> None: 
         self.env = env
         self.linear = linear
         self.state_space = self.env.observation_space.shape[0]
