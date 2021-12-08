@@ -9,10 +9,10 @@ class Parameterisedpolicy_network(nn.Module):
 
     def __init__(self, state_space_cardinality, action_space_cardinality) -> None:
         super().__init__()
-        self.input_fc = nn.Linear(in_features=state_space_cardinality, out_features=64)
+        self.input_fc = nn.Linear(in_features=state_space_cardinality, out_features=128)
         self.relu = nn.ReLU()
         self.output_fc = nn.Linear(
-            in_features=64, out_features=action_space_cardinality)
+            in_features=128, out_features=action_space_cardinality)
 
     def forward(self, x):
 
@@ -70,8 +70,16 @@ class ParameterisedPolicyReinforce():
         else:
             self.policy_network.eval()
             pi_given_S = self.policy_network(torch.tensor(S_t)).cpu().detach().numpy()
+
+        pi_given_S = pi_given_S/np.sum(pi_given_S) # normalize just in case but should not be thanks to softmax
         A_t = np.random.choice(self.number_of_actions, p=pi_given_S)
-        return A_t
+
+        max_A_t = np.argmax(pi_given_S)
+        rand_A_t = 0 if max_A_t == A_t else 1
+        # for a in range(self.number_of_actions):  # CONFIDENCE THRESHOLD
+        #     if pi_given_S[a] >=0.8:
+        #         A_t = a
+        return A_t, rand_A_t
     
     def update_theta(self, delta, A_t, S_t, gamma, t):
         if self.linear:
