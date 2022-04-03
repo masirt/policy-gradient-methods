@@ -11,4 +11,4 @@ For this project, we decided to further explore policy gradient methods and test
 ## Where to go from here
 To enable reproducability we chose to first start with an easy but straigtforward implementation and extend it to a more framework-like source coude from there. Therefore, one can find all conducted experiments in the different ```experiments_*.py``` files and the different ```*.ipynb```files. Inside ```actor_critic.py``` and ```reinforce.py``` one can find easy-to-reuse implementations of the two different algorithms. These rely on a certain parameterisation that can be found in ```policy_parameterisation.py``` and ```value_function_parameterisation.py```. As ellaborated in the report, we chose to use two different policy/value function parameterisations, using neural networks, as well as liner parameterisations.
 
-Just follow the report for a detailled insight into our work.
+Feel free to browse through the report for a detailled insight into our work. Thanks for reading! :)
