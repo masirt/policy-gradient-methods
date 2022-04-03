@@ -1,6 +1,6 @@
 # Policy Gradient Methods
 
-As part of a project, Yugantar Prakesh and I (Marios Sirtmatsis) implemented and evaluated different policy gradient methods and assembled our results in a `report`. In this repository, one can find our code and the report that include experiments using different policy gradient methods in the context of Reinforcement Learning. These experiments were conducted to show the main differences by means of performance, learning speed and other metrics between the one-step actor critic algorithm and the REINFORCE (with baseline) algorithm.
+As part of a project, Yugantar Prakash and I (Marios Sirtmatsis) implemented and evaluated different policy gradient methods and assembled our results in a `report`. In this repository, one can find our code and the report that include experiments using different policy gradient methods in the context of Reinforcement Learning. These experiments were conducted to show the main differences by means of performance, learning speed and other metrics between the one-step actor critic algorithm and the REINFORCE (with baseline) algorithm.
 
 Inside the `figures` folder, one can find charts that support the conducted experiments visually. These mostly are line charts, depicting the rewards that the agent collected over time, while interacting with two different environments.
 
